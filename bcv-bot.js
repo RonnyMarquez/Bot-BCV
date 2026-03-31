@@ -26,8 +26,9 @@ async function obtenerDolarBCV() {
 
 // ── 2. Obtener tasa Euro BCV ───────────────────────────────────
 async function obtenerEuroBCV() {
-  const { data } = await axios.get("https://ve.dolarapi.com/v1/dolares/euro");
-  return parseFloat(data.promedio).toFixed(2);
+  const { data } = await axios.get("https://ve.dolarapi.com/v1/dolares");
+  const euro = data.find(d => d.moneda === "EUR" || d.nombre?.toLowerCase().includes("euro"));
+  return parseFloat(euro.promedio).toFixed(2);
 }
 
 // ── 3. Obtener promedio P2P Binance (USDT/VES - Venta) ─────────
