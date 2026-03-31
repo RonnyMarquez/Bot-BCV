@@ -13,10 +13,9 @@ const bot = new TelegramBot(process.env.TELEGRAM_TOKEN, { polling: true });
 
 const suscriptores = new Set();
 
-// Guarda las últimas tasas conocidas
-let ultimasTasas  = { bcv: null, euro: null, binance: null };
-let tasasApertura = null; // Tasas al inicio del día
-let tasasCierre   = null; // Tasas al cierre del día anterior
+let ultimasTasas  = { bcv: null, binance: null };
+let tasasApertura = null;
+let tasasCierre   = null;
 
 // ── 1. Obtener tasa Dólar BCV ──────────────────────────────────
 async function obtenerDolarBCV() {
@@ -24,33 +23,19 @@ async function obtenerDolarBCV() {
   return parseFloat(data.promedio).toFixed(2);
 }
 
-// ── 3. Obtener promedio P2P Binance (USDT/VES - Venta) ─────────
+// ── 2. Obtener promedio P2P Binance (USDT/VES - Venta) ─────────
 async function obtenerBinanceP2P() {
   const { data } = await axios.post(
     "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search",
-    {
-      asset: "USDT",
-      fiat: "VES",
-      merchantCheck: false,
-      page: 1,
-      publisherType: null,
-      rows: 10,
-      tradeType: "SELL", // SELL = vendedores = cuánto pagan por tu USDT
-    },
-    {
-      headers: {
-        "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0",
-      },
-    }
+    { asset: "USDT", fiat: "VES", merchantCheck: false, page: 1, publisherType: null, rows: 10, tradeType: "SELL" },
+    { headers: { "Content-Type": "application/json", "User-Agent": "Mozilla/5.0" } }
   );
-
   const precios = data.data.map(d => parseFloat(d.adv.price));
   const promedio = precios.reduce((a, b) => a + b, 0) / precios.length;
   return promedio.toFixed(2);
 }
 
-// ── 4. Obtener todas las tasas ─────────────────────────────────
+// ── 3. Obtener todas las tasas ─────────────────────────────────
 async function obtenerTodasLasTasas() {
   const [bcv, binance] = await Promise.all([
     obtenerDolarBCV().catch(e => { console.error("❌ Error Dólar BCV:", e.message); return null; }),
@@ -60,20 +45,22 @@ async function obtenerTodasLasTasas() {
   return { bcv, binance };
 }
 
-// ── 5. Construir mensaje con las 3 tasas ───────────────────────
-function construirMensaje(tasas, anteriores, nombre) {
+// ── 4. Construir mensaje ───────────────────────────────────────
+// nombre es opcional, si se pasa se incluye en el saludo
+function construirMensaje(tasas, anteriores, nombre = null) {
   const ahora = new Date().toLocaleString("es-VE", { timeZone: "America/Caracas" });
+  const saludo = nombre ? `Estas son las tasas actuales ${nombre} 💖` : `💱 Tasas actuales`;
 
   function indicador(actual, anterior) {
     if (!anterior) return "";
-    const diff = actual - anterior;
-    if (diff > 0) return ` 📈 +${diff.toFixed(2)}`;
-    if (diff < 0) return ` 📉 ${diff.toFixed(2)}`;
+    const diff = (actual - anterior).toFixed(2);
+    if (diff > 0) return ` 📈 +${diff}`;
+    if (diff < 0) return ` 📉 ${diff}`;
     return " ➡️ sin cambio";
   }
 
   return (
-    `Estas son las tasas actuales ${nombre} 💖\n` +
+    `${saludo}\n` +
     `━━━━━━━━━━━━━━━\n` +
     `💵 Dólar BCV:     Bs. ${tasas.bcv}${indicador(tasas.bcv, anteriores.bcv)}\n` +
     `🔶 USDT Binance:  Bs. ${tasas.binance}${indicador(tasas.binance, anteriores.binance)}\n` +
@@ -82,26 +69,19 @@ function construirMensaje(tasas, anteriores, nombre) {
   );
 }
 
-// ── 6. Verificar cambios y notificar ──────────────────────────
+// ── 5. Verificar cambios y notificar ──────────────────────────
 async function verificarYNotificar() {
   try {
     console.log("🔍 Verificando tasas...");
     const tasas = await obtenerTodasLasTasas();
-
-    const cambio =
-      tasas.bcv !== ultimasTasas.bcv ||
-      tasas.euro !== ultimasTasas.euro ||
-      tasas.binance !== ultimasTasas.binance;
+    const cambio = tasas.bcv !== ultimasTasas.bcv || tasas.binance !== ultimasTasas.binance;
 
     if (cambio) {
       console.log("📈 Cambio detectado:", tasas);
-      const mensaje = construirMensaje(tasas, ultimasTasas);
+      const mensaje = construirMensaje(tasas, ultimasTasas); // sin nombre en alertas automáticas
       for (const chatId of suscriptores) {
-        try {
-          await bot.sendMessage(chatId, mensaje);
-        } catch (e) {
-          suscriptores.delete(chatId);
-        }
+        try { await bot.sendMessage(chatId, mensaje); }
+        catch (e) { suscriptores.delete(chatId); }
       }
       ultimasTasas = tasas;
     } else {
@@ -112,7 +92,7 @@ async function verificarYNotificar() {
   }
 }
 
-// ── 7. Mensaje de apertura (7:55am) ───────────────────────────
+// ── 6. Mensaje de apertura (7:55am) ───────────────────────────
 async function mensajeApertura() {
   try {
     const tasas = await obtenerTodasLasTasas();
@@ -144,7 +124,7 @@ async function mensajeApertura() {
   }
 }
 
-// ── 8. Mensaje de cierre (6:05pm) ─────────────────────────────
+// ── 7. Mensaje de cierre (6:05pm) ─────────────────────────────
 async function mensajeCierre() {
   try {
     const tasas = await obtenerTodasLasTasas();
@@ -175,17 +155,12 @@ async function mensajeCierre() {
   }
 }
 
-// ── 9. Cron Job (cada 2 horas, lunes a viernes, Caracas) ───────
-cron.schedule("0 8,10,12,14,16,18 * * 1-5", verificarYNotificar, {
-  timezone: "America/Caracas",
-});
-
-// Apertura: lunes a viernes 7:55am
+// ── 8. Cron Jobs ──────────────────────────────────────────────
+cron.schedule("0 8,10,12,14,16,18 * * 1-5", verificarYNotificar, { timezone: "America/Caracas" });
 cron.schedule("55 7 * * 1-5", mensajeApertura, { timezone: "America/Caracas" });
-// Cierre: lunes a viernes 6:05pm
-cron.schedule("5 18 * * 1-5", mensajeCierre, { timezone: "America/Caracas" });
+cron.schedule("5 18 * * 1-5", mensajeCierre,   { timezone: "America/Caracas" });
 
-// ── 10. Comandos del bot ───────────────────────────────────────
+// ── 9. Comandos ───────────────────────────────────────────────
 bot.onText(/\/start/, async (msg) => {
   const nombre = msg.from.first_name || "usuario";
   await bot.sendMessage(msg.chat.id,
@@ -199,10 +174,12 @@ bot.onText(/\/start/, async (msg) => {
 });
 
 bot.onText(/\/tasas/, async (msg) => {
+  const nombre = msg.from.first_name || "usuario";
   try {
-    await bot.sendMessage(msg.chat.id, "⏳ Estoy consultando tasas...");
+    await bot.sendMessage(msg.chat.id, "⏳ Espera estoy consultando...");
     const tasas = await obtenerTodasLasTasas();
-    const mensaje = construirMensaje(tasas, ultimasTasas);
+    // ✅ Pasamos el nombre como tercer parámetro
+    const mensaje = construirMensaje(tasas, ultimasTasas, nombre);
     await bot.sendMessage(msg.chat.id, mensaje);
     ultimasTasas = tasas;
   } catch (err) {
@@ -214,11 +191,11 @@ bot.onText(/\/tasas/, async (msg) => {
 bot.onText(/\/suscribir/, async (msg) => {
   const chatId = msg.chat.id;
   if (suscriptores.has(chatId)) {
-    await bot.sendMessage(chatId, "✅ Ya estás suscrito. Te avisare cuando actualicen las tasas.");
+    await bot.sendMessage(chatId, "✅ Ya estás suscrito. Te avisaré cuando actualicen las tasas.");
   } else {
     suscriptores.add(chatId);
     await bot.sendMessage(chatId,
-      "🔔 ¡ Te has suscrito! tranqui, te notificare cuando cambien las tasas.\n" +
+      "🔔 ¡Te has suscrito! Tranqui, te notificaré cuando cambien las tasas.\n" +
       "Usa /cancelar para desuscribirte."
     );
   }
@@ -232,10 +209,10 @@ bot.onText(/\/cancelar/, async (msg) => {
 bot.onText(/\/ayuda/, async (msg) => {
   await bot.sendMessage(msg.chat.id,
     `📋 Comandos:\n\n` +
-    `/tasas — Ver todas las tasas ahora\n` +
-    `/suscribir — Recibir alertas automáticas\n` +
-    `/cancelar — Dejar de recibir alertas\n` +
-    `/ayuda — Ver este menú`
+    `/tasas — Ver todas las tasas ahora ⚡\n` +
+    `/suscribir — Recibir alertas automáticas 🔔\n` +
+    `/cancelar — Dejar de recibir alertas 🔕\n` +
+    `/ayuda — Ver este menú ℹ️`
   );
 });
 
