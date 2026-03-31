@@ -73,7 +73,7 @@ function construirMensaje(tasas, anteriores) {
   }
 
   return (
-    `💱 Tasas Actuales\n` +
+    `Estas son las tasas actuales ${nombre} 💖\n` +
     `━━━━━━━━━━━━━━━\n` +
     `💵 Dólar BCV:     Bs. ${tasas.bcv}${indicador(tasas.bcv, anteriores.bcv)}\n` +
     `🔶 USDT Binance:  Bs. ${tasas.binance}${indicador(tasas.binance, anteriores.binance)}\n` +
