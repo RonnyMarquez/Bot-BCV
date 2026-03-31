@@ -59,10 +59,11 @@ async function obtenerBinanceP2P() {
 // ── 4. Obtener todas las tasas ─────────────────────────────────
 async function obtenerTodasLasTasas() {
   const [bcv, euro, binance] = await Promise.all([
-    obtenerDolarBCV(),
-    obtenerEuroBCV(),
-    obtenerBinanceP2P(),
+    obtenerDolarBCV().catch(e => { console.error("❌ Error Dólar BCV:", e.message); return null; }),
+    obtenerEuroBCV().catch(e => { console.error("❌ Error Euro BCV:", e.message); return null; }),
+    obtenerBinanceP2P().catch(e => { console.error("❌ Error Binance P2P:", e.message); return null; }),
   ]);
+  console.log("📊 Tasas obtenidas:", { bcv, euro, binance });
   return { bcv, euro, binance };
 }
 
@@ -79,7 +80,7 @@ function construirMensaje(tasas, anteriores) {
   }
 
   return (
-    `💱 Hola hola! asi estan las tasa ahora\n` +
+    `💱 Tasas del día\n` +
     `━━━━━━━━━━━━━━━\n` +
     `💵 Dólar BCV:     Bs. ${tasas.bcv}${indicador(tasas.bcv, anteriores.bcv)}\n` +
     `💶 Euro BCV:      Bs. ${tasas.euro}${indicador(tasas.euro, anteriores.euro)}\n` +
@@ -92,7 +93,7 @@ function construirMensaje(tasas, anteriores) {
 // ── 6. Verificar cambios y notificar ──────────────────────────
 async function verificarYNotificar() {
   try {
-    console.log("🔍 Estoy verificando las tasas...");
+    console.log("🔍 Verificando tasas...");
     const tasas = await obtenerTodasLasTasas();
 
     const cambio =
@@ -134,7 +135,7 @@ async function mensajeApertura() {
     }
 
     const msg =
-      `🌅 Buenos díass! Así amanecieron las tasas de hoy:\n` +
+      `🌅 Buenos días! Así amanecieron las tasas hoy:\n` +
       `━━━━━━━━━━━━━━━\n` +
       `💵 ${comparar(tasas.bcv,     tasasCierre?.bcv,     "Dólar BCV")}\n` +
       `💶 ${comparar(tasas.euro,    tasasCierre?.euro,    "Euro BCV")}\n` +
@@ -166,7 +167,7 @@ async function mensajeCierre() {
     }
 
     const msg =
-      `🌙  Es hora de dormir. Así cerró el día:\n` +
+      `🌙 Buenas noches! Así cerró el día:\n` +
       `━━━━━━━━━━━━━━━\n` +
       `💵 ${comparar(tasas.bcv,     tasasApertura?.bcv,     "Dólar BCV")}\n` +
       `💶 ${comparar(tasas.euro,    tasasApertura?.euro,    "Euro BCV")}\n` +
@@ -198,7 +199,7 @@ cron.schedule("5 18 * * 1-5", mensajeCierre, { timezone: "America/Caracas" });
 bot.onText(/\/start/, async (msg) => {
   const nombre = msg.from.first_name || "usuario";
   await bot.sendMessage(msg.chat.id,
-    `👋 Hola ${nombre}! Bienvenido, espero ser de utilidad 😌\n\n` +
+    `👋 Hola ${nombre}! Soy el bot de tasas 🇻🇪\n\n` +
     `Comandos:\n` +
     `/tasas — Ver todas las tasas ahora\n` +
     `/suscribir — Recibir alertas automáticas\n` +
@@ -209,14 +210,14 @@ bot.onText(/\/start/, async (msg) => {
 
 bot.onText(/\/tasas/, async (msg) => {
   try {
-    await bot.sendMessage(msg.chat.id, "⏳ un momento estoy consultando las tasas...");
+    await bot.sendMessage(msg.chat.id, "⏳ Consultando tasas...");
     const tasas = await obtenerTodasLasTasas();
     const mensaje = construirMensaje(tasas, ultimasTasas);
     await bot.sendMessage(msg.chat.id, mensaje);
     ultimasTasas = tasas;
   } catch (err) {
-    await bot.sendMessage(msg.chat.id, "❌ Error consultando tasas. Intenta más tarde.");
-    console.error(err.message);
+    await bot.sendMessage(msg.chat.id, `❌ Error: ${err.message}`);
+    console.error("❌ Error /tasas:", err.message);
   }
 });
 
@@ -227,7 +228,7 @@ bot.onText(/\/suscribir/, async (msg) => {
   } else {
     suscriptores.add(chatId);
     await bot.sendMessage(chatId,
-      "🔔 ¡Estas suscrito! Ahora te notificare cuando cambien las tasas.\n" +
+      "🔔 ¡Suscrito! Te notificaremos cuando cambien las tasas.\n" +
       "Usa /cancelar para desuscribirte."
     );
   }
@@ -235,7 +236,7 @@ bot.onText(/\/suscribir/, async (msg) => {
 
 bot.onText(/\/cancelar/, async (msg) => {
   suscriptores.delete(msg.chat.id);
-  await bot.sendMessage(msg.chat.id, "🔕 Desuscrito. Usa /suscribir si quieres volver a activar las alertas.");
+  await bot.sendMessage(msg.chat.id, "🔕 Desuscrito. Usa /suscribir para volver a activar las alertas.");
 });
 
 bot.onText(/\/ayuda/, async (msg) => {
