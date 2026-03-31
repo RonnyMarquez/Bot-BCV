@@ -62,6 +62,7 @@ async function obtenerTodasLasTasas() {
 
 // ── 5. Construir mensaje con las 3 tasas ───────────────────────
 function construirMensaje(tasas, anteriores) {
+  const nombre = msg.from.first_name || "usuario";
   const ahora = new Date().toLocaleString("es-VE", { timeZone: "America/Caracas" });
 
   function indicador(actual, anterior) {
