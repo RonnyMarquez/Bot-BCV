@@ -73,7 +73,7 @@ function construirMensaje(tasas, anteriores) {
   }
 
   return (
-    `💱 Tasas del día\n` +
+    `💱 Tasas Actuales\n` +
     `━━━━━━━━━━━━━━━\n` +
     `💵 Dólar BCV:     Bs. ${tasas.bcv}${indicador(tasas.bcv, anteriores.bcv)}\n` +
     `🔶 USDT Binance:  Bs. ${tasas.binance}${indicador(tasas.binance, anteriores.binance)}\n` +
@@ -127,7 +127,7 @@ async function mensajeApertura() {
     }
 
     const msg =
-      `🌅 Buenos días! Así amanecieron las tasas hoy:\n` +
+      `🌅 Buenos días alegria! Así amanecieron las tasas hoy ${nombre}:\n` +
       `━━━━━━━━━━━━━━━\n` +
       `💵 ${comparar(tasas.bcv,     tasasCierre?.bcv,     "Dólar BCV")}\n` +
       `🔶 ${comparar(tasas.binance, tasasCierre?.binance, "USDT Binance")}\n` +
@@ -158,7 +158,7 @@ async function mensajeCierre() {
     }
 
     const msg =
-      `🌙 Buenas noches! Así cerró el día:\n` +
+      `🌙 Buenas noches ${nombre}, es hora de dormir! Así cerró el día:\n` +
       `━━━━━━━━━━━━━━━\n` +
       `💵 ${comparar(tasas.bcv,     tasasApertura?.bcv,     "Dólar BCV")}\n` +
       `🔶 ${comparar(tasas.binance, tasasApertura?.binance, "USDT Binance")}\n` +
@@ -189,18 +189,18 @@ cron.schedule("5 18 * * 1-5", mensajeCierre, { timezone: "America/Caracas" });
 bot.onText(/\/start/, async (msg) => {
   const nombre = msg.from.first_name || "usuario";
   await bot.sendMessage(msg.chat.id,
-    `👋 Hola ${nombre}! Soy el bot de tasas 🇻🇪\n\n` +
+    `👋 Epale ${nombre}! bienvenido a FlashBCV, que deseas hacer? 💖\n\n` +
     `Comandos:\n` +
-    `/tasas — Ver todas las tasas ahora\n` +
-    `/suscribir — Recibir alertas automáticas\n` +
-    `/cancelar — Dejar de recibir alertas\n` +
-    `/ayuda — Ver este menú`
+    `/tasas — Ver las tasas ahora ⚡\n` +
+    `/suscribir — Recibir alertas automáticas 🔔\n` +
+    `/cancelar — Dejar de recibir alertas 🔕\n` +
+    `/ayuda — Ver este menú ℹ️`
   );
 });
 
 bot.onText(/\/tasas/, async (msg) => {
   try {
-    await bot.sendMessage(msg.chat.id, "⏳ Consultando tasas...");
+    await bot.sendMessage(msg.chat.id, "⏳ Estoy consultando tasas...");
     const tasas = await obtenerTodasLasTasas();
     const mensaje = construirMensaje(tasas, ultimasTasas);
     await bot.sendMessage(msg.chat.id, mensaje);
@@ -214,11 +214,11 @@ bot.onText(/\/tasas/, async (msg) => {
 bot.onText(/\/suscribir/, async (msg) => {
   const chatId = msg.chat.id;
   if (suscriptores.has(chatId)) {
-    await bot.sendMessage(chatId, "✅ Ya estás suscrito. Te avisamos cuando cambien las tasas.");
+    await bot.sendMessage(chatId, "✅ Ya estás suscrito. Te avisare cuando actualicen las tasas.");
   } else {
     suscriptores.add(chatId);
     await bot.sendMessage(chatId,
-      "🔔 ¡Suscrito! Te notificaremos cuando cambien las tasas.\n" +
+      "🔔 ¡ Te has suscrito! tranqui, te notificare cuando cambien las tasas.\n" +
       "Usa /cancelar para desuscribirte."
     );
   }
