@@ -27,7 +27,9 @@ async function obtenerDolarBCV() {
 // ── 2. Obtener tasa Euro BCV ───────────────────────────────────
 async function obtenerEuroBCV() {
   const { data } = await axios.get("https://ve.dolarapi.com/v1/dolares");
+  console.log("🔍 Monedas disponibles:", JSON.stringify(data.map(d => ({ moneda: d.moneda, nombre: d.nombre }))));
   const euro = data.find(d => d.moneda === "EUR" || d.nombre?.toLowerCase().includes("euro"));
+  if (!euro) throw new Error("Euro no encontrado en la API");
   return parseFloat(euro.promedio).toFixed(2);
 }
 
