@@ -24,14 +24,6 @@ async function obtenerDolarBCV() {
   return parseFloat(data.promedio).toFixed(2);
 }
 
-// ── 2. Obtener tasa Euro BCV ───────────────────────────────────
-async function obtenerEuroBCV() {
-  const { data } = await axios.get("https://pydolarve.org/api/v1/dollar?page=bcv");
-  const euro = data.monitors?.EUR || data.monitors?.euro;
-  if (!euro) throw new Error("Euro no encontrado en pydolarve");
-  return parseFloat(euro.price).toFixed(2);
-}
-
 // ── 3. Obtener promedio P2P Binance (USDT/VES - Venta) ─────────
 async function obtenerBinanceP2P() {
   const { data } = await axios.post(
@@ -60,13 +52,12 @@ async function obtenerBinanceP2P() {
 
 // ── 4. Obtener todas las tasas ─────────────────────────────────
 async function obtenerTodasLasTasas() {
-  const [bcv, euro, binance] = await Promise.all([
+  const [bcv, binance] = await Promise.all([
     obtenerDolarBCV().catch(e => { console.error("❌ Error Dólar BCV:", e.message); return null; }),
-    obtenerEuroBCV().catch(e => { console.error("❌ Error Euro BCV:", e.message); return null; }),
     obtenerBinanceP2P().catch(e => { console.error("❌ Error Binance P2P:", e.message); return null; }),
   ]);
-  console.log("📊 Tasas obtenidas:", { bcv, euro, binance });
-  return { bcv, euro, binance };
+  console.log("📊 Tasas obtenidas:", { bcv, binance });
+  return { bcv, binance };
 }
 
 // ── 5. Construir mensaje con las 3 tasas ───────────────────────
@@ -85,7 +76,6 @@ function construirMensaje(tasas, anteriores) {
     `💱 Tasas del día\n` +
     `━━━━━━━━━━━━━━━\n` +
     `💵 Dólar BCV:     Bs. ${tasas.bcv}${indicador(tasas.bcv, anteriores.bcv)}\n` +
-    `💶 Euro BCV:      Bs. ${tasas.euro}${indicador(tasas.euro, anteriores.euro)}\n` +
     `🔶 USDT Binance:  Bs. ${tasas.binance}${indicador(tasas.binance, anteriores.binance)}\n` +
     `━━━━━━━━━━━━━━━\n` +
     `📅 ${ahora}`
@@ -140,7 +130,6 @@ async function mensajeApertura() {
       `🌅 Buenos días! Así amanecieron las tasas hoy:\n` +
       `━━━━━━━━━━━━━━━\n` +
       `💵 ${comparar(tasas.bcv,     tasasCierre?.bcv,     "Dólar BCV")}\n` +
-      `💶 ${comparar(tasas.euro,    tasasCierre?.euro,    "Euro BCV")}\n` +
       `🔶 ${comparar(tasas.binance, tasasCierre?.binance, "USDT Binance")}\n` +
       `━━━━━━━━━━━━━━━\n` +
       `📅 ${new Date().toLocaleString("es-VE", { timeZone: "America/Caracas" })}`;
@@ -172,7 +161,6 @@ async function mensajeCierre() {
       `🌙 Buenas noches! Así cerró el día:\n` +
       `━━━━━━━━━━━━━━━\n` +
       `💵 ${comparar(tasas.bcv,     tasasApertura?.bcv,     "Dólar BCV")}\n` +
-      `💶 ${comparar(tasas.euro,    tasasApertura?.euro,    "Euro BCV")}\n` +
       `🔶 ${comparar(tasas.binance, tasasApertura?.binance, "USDT Binance")}\n` +
       `━━━━━━━━━━━━━━━\n` +
       `📅 ${new Date().toLocaleString("es-VE", { timeZone: "America/Caracas" })}`;
